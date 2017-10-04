@@ -1,772 +1,426 @@
-/**
- * main.js
- * http://www.codrops.com
+/* ===================================================================
+ * Infinity - Main JS
  *
- * Licensed under the MIT license.
- * http://www.opensource.org/licenses/mit-license.php
- * 
- * Copyright 2017, Codrops
- * http://www.codrops.com
- */
-;(function(window) {
+ * ------------------------------------------------------------------- */ 
 
-	// Helper vars and functions.
-	function extend( a, b ) {
-		for( var key in b ) { 
-			if( b.hasOwnProperty( key ) ) {
-				a[key] = b[key];
-			}
-		}
-		return a;
-	}
+(function($) {
 
-	// Random number.
-	function getRandomInt(min, max) {
-		return Math.floor(Math.random() * (max - min + 1)) + min;
-	}
+	"use strict";
 
-	// from http://www.quirksmode.org/js/events_properties.html#position
-	function getMousePos(e) {
-		var posx = 0;
-		var posy = 0;
-		if (!e) var e = window.event;
-		if (e.pageX || e.pageY) 	{
-			posx = e.pageX;
-			posy = e.pageY;
-		}
-		else if (e.clientX || e.clientY) 	{
-			posx = e.clientX + document.body.scrollLeft
-				+ document.documentElement.scrollLeft;
-			posy = e.clientY + document.body.scrollTop
-				+ document.documentElement.scrollTop;
-		}
-		return {
-			x : posx,
-			y : posy
-		}
-	}
+	var cfg = {		
+		defAnimation   : "fadeInUp",    // default css animation		
+		scrollDuration : 800,           // smoothscroll duration
+		mailChimpURL   : 'http://facebook.us8.list-manage.com/subscribe/post?u=cdb7b577e41181934ed6a6a44&amp;id=e65110b38d'
+	},	
 
-	// From https://davidwalsh.name/javascript-debounce-function.
-	function debounce(func, wait, immediate) {
-		var timeout;
-		return function() {
-			var context = this, args = arguments;
-			var later = function() {
-				timeout = null;
-				if (!immediate) func.apply(context, args);
-			};
-			var callNow = immediate && !timeout;
-			clearTimeout(timeout);
-			timeout = setTimeout(later, wait);
-			if (callNow) func.apply(context, args);
-		};
-	};
+	$WIN = $(window);
+	
 
-	/**
-	 * PieceMaker obj.
-	 */
-	function PieceMaker(el, options) {
-		this.el = el;
-		this.options = extend({}, this.options);
-		extend(this.options, options);
-		this._init();
-	}
+   // Add the User Agent to the <html>
+   // will be used for IE10 detection (Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.2; Trident/6.0))
+	var doc = document.documentElement;
+	doc.setAttribute('data-useragent', navigator.userAgent);
 
-	/**
-	 * PieceMaker default options.
-	 */
-	PieceMaker.prototype.options = {
-		// Number of pieces / Layout (rows x cols).
-		pieces: {rows: 14, columns: 10},
-		// Main image tilt: max and min angles.
-		tilt: {maxRotationX: -2, maxRotationY: 3, maxTranslationX: 6, maxTranslationY: -2}
-	};
+	
+	/* Preloader 
+	 * -------------------------------------------------- */
+	var ssPreloader = function() {
 
-	/**
-	 * Init. Create layout and initialize/bind any events.
-	 */
-	PieceMaker.prototype._init = function() {
-		// The source of the main image.
-		this.imgsrc = this.el.style.backgroundImage.replace('url(','').replace(')','').replace(/\"/gi, "");
-		// Window sizes.
-		this.win = {width: window.innerWidth, height: window.innerHeight};
-		// Container sizes.
-		this.dimensions = {width:this.el.offsetWidth, height:this.el.offsetHeight};
-		// Render all the pieces defined in the options.
-		this._layout();
-		// Init tilt.
-		this.initTilt();
-		// Init/Bind events
-		this._initEvents();
-	};
+		$WIN.on('load', function() {	
 
-	/**
-	 * Renders all the pieces defined in the PieceMaker.prototype.options.
-	 */
-	PieceMaker.prototype._layout = function() {
-		this.el.style.backgroundImage = this.el.getAttribute('data-img-code');
+			// force page scroll position to top at page refresh
+			$('html, body').animate({ scrollTop: 0 }, 'normal');
 
-		// Create the pieces and add them to the DOM (append it to the main element).
-		this.pieces = [];
-		for (let r = 0; r < this.options.pieces.rows; ++r) {
-			for (let c = 0; c < this.options.pieces.columns; ++c) {
-				const piece = this._createPiece(r,c);	
-				piece.style.backgroundPosition = -1*c*100 + '% ' + -1*100*r + '%';
-				this.pieces.push(piece);
-			}
-		}
-	};
+	      // will first fade out the loading animation 
+	    	$("#loader").fadeOut("slow", function(){
 
-	/**
-	 * Create a piece.
-	 */
-	PieceMaker.prototype._createPiece = function(row, column) {
-		const w = Math.round(this.dimensions.width/this.options.pieces.columns),
-			  h = Math.round(this.dimensions.height/this.options.pieces.rows),
-			  piece = document.createElement('div');
+	        // will fade out the whole DIV that covers the website.
+	        $("#preloader").delay(300).fadeOut("slow");
 
-		piece.style.backgroundImage = 'url(' + this.imgsrc + ')';
-		piece.className = 'piece';
-		piece.style.width = w + 'px';
-		piece.style.height = h + + 'px';
-		piece.style.backgroundSize = w * this.options.pieces.columns + 'px auto';
-		piece.setAttribute('data-column', column);
-		piece.setAttribute('data-delay', anime.random(-25,25));
-		this.el.appendChild(piece);
-		this.el.style.width = w * this.options.pieces.columns + 'px';
-		this.el.style.height = h * this.options.pieces.rows + 'px';
+	      }); 
+	  	});
+	}; 
 
-		return piece;
-	};
 
-	/**
-	 * Init tilt.
-	 */
-	PieceMaker.prototype.initTilt = function() {
-		if( is3DBuggy ) return;
-		this.el.style.transition = 'transform 0.2s ease-out';
-		this.tilt = true;
-	};
+	/* FitVids
+	------------------------------------------------------ */ 
+	var ssFitVids = function() {
+		$(".fluid-video-wrapper").fitVids();
+	}; 
 
-	/**
-	 * Remove tilt.
-	 */
-	PieceMaker.prototype.removeTilt = function() {
-		if( is3DBuggy ) return;
-		this.tilt = false;
-	};
 
-	/**
-	 * Init/Bind Events.
-	 */
-	PieceMaker.prototype._initEvents = function() {
-		const self = this,
-			  // Mousemove event / Tilt functionality.
-			  onMouseMoveFn = function(ev) {
-				requestAnimationFrame(function() {
-					if( !self.tilt ) {
-						if( is3DBuggy ) {
-							self.el.style.transform = 'none';
-						}
-						return false;
-					}
-					const mousepos = getMousePos(ev),
-						  rotX = 2*self.options.tilt.maxRotationX/self.win.height*mousepos.y - self.options.tilt.maxRotationX,
-						  rotY = 2*self.options.tilt.maxRotationY/self.win.width*mousepos.x - self.options.tilt.maxRotationY,
-						  transX = 2*self.options.tilt.maxTranslationX/self.win.width*mousepos.x - self.options.tilt.maxTranslationX,
-						  transY = 2*self.options.tilt.maxTranslationY/self.win.height*mousepos.y - self.options.tilt.maxTranslationY;
+	/*	Masonry
+	------------------------------------------------------ */
+	var ssMasonryFolio = function() {
 
-					self.el.style.transform = 'perspective(1000px) translate3d(' + transX + 'px,' + transY + 'px,0) rotate3d(1,0,0,' + rotX + 'deg) rotate3d(0,1,0,' + rotY + 'deg)';
-				});
-			  },
-			  // Window resize.
-			  debounceResizeFn = debounce(function() {
-				self.win = {width: window.innerWidth, height: window.innerHeight};
-				self.el.style.width = self.el.style.height = '';
-				const elBounds = self.el.getBoundingClientRect();
-				self.dimensions = {width: elBounds.width, height: elBounds.height};
-				for(let i = 0, len = self.pieces.length; i < len; ++i) {
-					const w = Math.round(self.dimensions.width/self.options.pieces.columns),
-						  h = Math.round(self.dimensions.height/self.options.pieces.rows),
-						  piece = self.pieces[i];
-					
-					piece.style.width = w + 'px';
-					piece.style.height = h + 'px';
-					piece.style.backgroundSize = w * self.options.pieces.columns + 'px auto';
-					self.el.style.width = w * self.options.pieces.columns + 'px';
-					self.el.style.height = h * self.options.pieces.rows + 'px';
-				}
-			  }, 10);
+		var containerBricks = $('.bricks-wrapper');
 
-		document.addEventListener('mousemove', onMouseMoveFn);
-		window.addEventListener('resize', debounceResizeFn);
-	};
-
-	/**
-	 * Squares loop effect (Main image)
-	 */
-	PieceMaker.prototype.loopFx = function() {
-		this.isLoopFXActive = true;
-		// Switch main image's background image:
-		this.el.style.backgroundImage = this.el.getAttribute('data-img-alt');
-
-		const self = this;
-		anime.remove(this.pieces);
-		anime({
-			targets: this.pieces,
-			duration: 50,
-			easing: 'linear',
-			opacity: [
-				{
-					value: function(t,i) {
-						return !anime.random(0,5) ? 0 : 1;
-					},
-					delay: function(t,i) {
-						return anime.random(0,2000);
-					}
-				},
-				{
-					value: 1,
-					delay: function(t,i) {
-						return anime.random(200,2000);	
-					}
-				}
-			],
-			complete: function() {
-				if( self.isLoopFXActive ) {
-					self.loopFx();
-				}
-			}
-		});
-	};
-
-	/**
-	 * Stop the loop effect.
-	 */
-	PieceMaker.prototype.stopLoopFx = function() {
-		this.isLoopFXActive = false;
-		this.el.style.backgroundImage = this.el.getAttribute('data-img-code');
-		anime.remove(this.pieces);
-		for(let i = 0, len = this.pieces.length; i < len; ++i) {
-			this.pieces[i].style.opacity = 1;
-		}
-	};
-
-	/**
-	 * Animate the pieces.
-	 */
-	PieceMaker.prototype.animatePieces = function(dir, callback) {
-		const self = this;
-		anime.remove(this.pieces);
-		anime({
-			targets: this.pieces.reverse(),
-			duration: dir === 'out' ? 600 : 500,
-			delay: function(t,i) {
-				return Math.max(0,i*6 + parseInt(t.getAttribute('data-delay')));
-			},
-			easing: dir === 'out' ? [0.2,1,0.3,1] : [0.8,1,0.3,1],
-			translateX: dir === 'out' ? function(t,i) { 
-				return t.getAttribute('data-column') < self.options.pieces.columns/2 ? anime.random(50,100) : anime.random(-100,-50);
-			} : function(t,i) { 
-				return t.getAttribute('data-column') < self.options.pieces.columns/2 ? [anime.random(50,100),0] : [anime.random(-100,-50),0];
-			},
-			translateY: dir === 'out' ? function(t,i) { 
-				return [0,anime.random(-1000,-800)]; 
-			} : function(t,i) { 
-				return [anime.random(-1000,-800), 0]; 
-			},
-			opacity: {
-				value: dir === 'out' ? 0 : 1,
-				duration: dir === 'out' ? 600 : 300,
-				easing: 'linear'
-			},
-			complete: callback
-		});
-	};
-
-	/**
-	 * Custom effect on the pieces.
-	 */
-	PieceMaker.prototype.fxCustom = function(dir) {
-		this.fxCustomTriggered = true;
-		const self = this;
-		anime({
-			targets: this.pieces.reverse().filter(function(t) {
-				return t.getAttribute('data-column') < self.options.pieces.columns/2
-			}),
-			duration: dir === 'left' ? 400 : 200,
-			easing: dir === 'left' ? [0.2,1,0.3,1] : [0.8,0,0.7,0],
-			delay: function(t,i,c) {
-				return dir === 'left' ? Math.max(0,i*5 + parseInt(t.getAttribute('data-delay'))) : Math.max(0,(c-1-i)*2 + parseInt(t.getAttribute('data-delay')));
-			},
-			translateX: function(t,i) { 
-				return dir === 'left' ? anime.random(-500,-100) : [anime.random(-500,-100), 0];
-			},
-			translateY: function(t,i) { 
-				return dir === 'left' ? anime.random(0,100) : [anime.random(0,100), 0];
-			},
-			opacity: {
-				duration: dir === 'left' ? 200 : 200,
-				value: dir === 'left' ? 0 : [0,1],
-				easing: dir === 'left' ? 'linear' : [0.8,0,0.7,0]
-			}
-		});
-	};
-
-	/**
-	 * Reset effect.
-	 */
-	PieceMaker.prototype.fxCustomReset = function(dir, callback) {
-		this.fxCustomTriggered = false;
-		const self = this;
-		anime.remove(this.pieces);
-		anime({
-			targets: this.pieces.reverse().filter(function(t) {
-				return t.getAttribute('data-column') < self.options.pieces.columns/2
-			}),
-			duration: dir === 'left' ? 200 : 400,
-			easing: dir === 'left' ? [0.8,0,0.7,0] : [0.2,1,0.3,1],
-			delay: function(t,i,c) {
-				return dir === 'left' ? Math.max(0,(c-1-i)*2 + parseInt(t.getAttribute('data-delay'))) : Math.max(0,i*5 + parseInt(t.getAttribute('data-delay')));
-			},
-			translateX: function(t,i) {
-				return dir === 'left' ? 0 : anime.random(-500,-100);
-			},
-			translateY: function(t,i) {
-				return dir === 'left' ? 0 : anime.random(0,100);
-			},
-			opacity: {
-				duration: dir === 'left' ? 200 : 200,
-				value: dir === 'left' ? 1 : [1,0],
-				easing: dir === 'left' ? [0.8,0,0.7,0] : 'linear'
-			},
-			complete: callback
-		});
-	};
-
-	window.PieceMaker = PieceMaker;
-
-	/**
-	 * GlitchFx obj.
-	 */
-	function GlitchFx(elems, options) {
-		this.elems = [].slice.call(elems);
-		this.options = extend({}, this.options);
-		extend(this.options, options);
-		this.glitch();
-	}
-
-	/**
-	 * GlitchFx default options.
-	 */
-	GlitchFx.prototype.options = {
-		// Max and Min values for the time when to start the glitch effect.
-		glitchStart: {min: 500, max: 4000},
-		// Max and Min values of time that an element keeps each glitch state. 
-		// In this case we are alternating classes so this is the time that an element will have one class before it gets replaced.
-		glitchState: {min: 50, max: 250},
-		// Number of times the class is changed per glitch iteration.
-		glitchTotalIterations: 6
-	};
-
-	/**
-	 * Glitch fn.
-	 */
-	GlitchFx.prototype.glitch = function() {
-		this.isInactive = false;
-		const self = this;
-		clearTimeout(this.glitchTimeout);
-		this.glitchTimeout = setTimeout(function() {
-			self.iteration = 0;
-			self._glitchState(function() {
-				if( !self.isInactive ) {
-					self.glitch();
-				}
-			});
-		}, getRandomInt(this.options.glitchStart.min, this.options.glitchStart.max));
-	};
-
-	/**
-	 * Glitch iteration fn.
-	 */
-	GlitchFx.prototype._glitchState = function(callback) {
-		const self = this;
-
-		if( this.iteration < this.options.glitchTotalIterations ) {
-			this.glitchStateTimeout = setTimeout(function() {
-				self.elems.forEach(function(el) {
-					if( el.classList.contains('mode--code') ) {
-						el.classList.add('mode--design');
-						el.classList.remove('mode--code');
-					}
-					else {
-						el.classList.add('mode--code');
-						el.classList.remove('mode--design');
-					}
-					el.style.transform = self.iteration%2 !== 0 ? 'translate3d(0,0,0)' : 'translate3d(' + getRandomInt(-5,5) + 'px,' + getRandomInt(-5,5) + 'px,0)';
-				});
-
-				self.iteration++;
-				if( !self.isInactive ) {
-					self._glitchState(callback);
-				}
-				
-			}, getRandomInt(this.options.glitchState.min, this.options.glitchState.max));
-		}
-		else {
-			callback.call();
-		}
-	};
-
-	GlitchFx.prototype.stopGlitch = function() {
-		this.isInactive = true;
-		clearTimeout(this.glitchTimeout);
-		clearTimeout(this.glitchStateTimeout);
-		// Reset styles.
-		this.elems.forEach(function(el) {
-			if( el.classList.contains('mode--code') ) {
-				el.classList.add('mode--design');
-				el.classList.remove('mode--code');
-				el.style.transform = 'translate3d(0,0,0)';
-			}
-		});
-	};
-
-	window.GlitchFx = GlitchFx;
-
-	const DOM = {}, is3DBuggy = navigator.userAgent.indexOf('Firefox') > 0;
-	let pm, gfx;
-	DOM.body = document.body;
-	DOM.loading = document.querySelector('.loading');
-	DOM.switchCtrls = document.querySelector('.switch');
-	DOM.switchModeCtrls = {
-		'design' : DOM.switchCtrls.firstElementChild,
-		'code' : DOM.switchCtrls.lastElementChild
-	};
-	DOM.pieces = document.querySelector('.pieces');
-	DOM.glitchElems = document.querySelectorAll('[data-glitch]');
-	DOM.contact = {
-		el: document.querySelector('.contact-link')
-	};
-	DOM.title = {
-		el: document.querySelector('.title > .title__inner')
-	};
-	DOM.menuCtrl = document.querySelector('.btn--menu');
-	DOM.menu = {
-		'design' : {
-			'wrapper': document.querySelector('.menu'),
-			'items': document.querySelector('.menu').firstElementChild.querySelectorAll('.menu__inner a')
-		},
-		'code' : {
-			'wrapper': document.querySelector('.menu--code'),
-			'items': document.querySelectorAll('.menu--code > .menu__inner a')
-		}
-	};
-	DOM.overlay = document.querySelector('.overlay');
-	// The current mode.
-	let mode = 'design', disablePageFx, isAnimating;
-
-	function init() {
-		imagesLoaded(DOM.body, { background: true }, function() {
-			// Remove page loader.
-			DOM.loading.classList.add('loading--hide');
-			// Create the image pieces.
-			pm = new PieceMaker(DOM.pieces);
-			// Start the squares loop effect on the main image.
-			pm.loopFx();
-			// Glitch effect on some elements (title, contact and coder link) in the page.
-			gfx = new GlitchFx(DOM.glitchElems);
-			// Split the title, contact and code menu items into spans/letters.
-			wordsToLetters();
-			// Init/Bind events
-			initEvents();
-		});
-	}
-
-	function wordsToLetters() {
-		// Title.
-		charming(DOM.title.el);
-		DOM.title.letters = [].slice.call(DOM.title.el.querySelectorAll('span'));
-		// Contact.
-		charming(DOM.contact.el);
-		DOM.contact.letters = [].slice.call(DOM.contact.el.querySelectorAll('span'));
-		// Menu items (code mode).
-		DOM.menuCodeItemLetters = [];
-		[].slice.call(DOM.menu.code.items).forEach(function(item) {
-			charming(item);
-			DOM.menuCodeItemLetters.push([].slice.call(item.querySelectorAll('span')));
-		});
-	}
-
-	function initEvents() {
-		DOM.switchModeCtrls.design.addEventListener('click', switchMode);
-		DOM.switchModeCtrls.code.addEventListener('click', switchMode);
-
-		const pauseFxFn = function() {
-				pm.stopLoopFx();
-				gfx.stopGlitch();
-				pm.removeTilt();
-			  },
-			  playFxFn = function() {
-				pm.loopFx();
-				if( gfx.isInactive ) {
-					gfx.glitch();
-				}
-				pm.initTilt();
-			  },
-			  contactMouseEnterEvFn = function(ev) {
-				if( isAnimating ) return false;
-				if( mode === 'design' ) {
-					pauseFxFn();
-				}
-				pm.fxCustom(mode === 'design' ? 'left' : 'right');
-			  },
-			  contactMouseLeaveEvFn = function(ev) {
-			  	if( isAnimating || !pm.fxCustomTriggered ) return false;
-				pm.fxCustomReset(mode === 'design' ? 'left' : 'right', function() {
-					if( !disablePageFx ) {
-						playFxFn();
-					}
-				});
-			  },
-			  switchMouseEnterEvFn = function(ev) {
-				if( disablePageFx || isAnimating ) return;
-				pauseFxFn();
-			  },
-			  switchMouseLeaveEvFn = function(ev) {
-				if( disablePageFx || isAnimating ) return;
-				playFxFn();
-			  };
-		
-		DOM.contact.el.addEventListener('mouseenter', contactMouseEnterEvFn);
-		DOM.contact.el.addEventListener('mouseleave', contactMouseLeaveEvFn);
-		DOM.switchCtrls.addEventListener('mouseenter', switchMouseEnterEvFn);
-		DOM.switchCtrls.addEventListener('mouseleave', switchMouseLeaveEvFn);
-	}
-
-	function switchMode(ev) {
-		ev.preventDefault();
-
-		if( isAnimating ) {
-			return false;
-		}
-		isAnimating = true;
-		
-		// mode: design||code.
-		mode = ev.target === DOM.switchModeCtrls.code ? 'code' : 'design';
-
-		switchOverlay();
-
-		if( mode === 'code' ) {
-			disablePageFx = true;
-			pm.removeTilt();
-			pm.stopLoopFx();
-			gfx.stopGlitch();
-		}
-		
-		// Change current class on the designer/coder links.
-		DOM.switchModeCtrls[mode === 'code' ? 'design' : 'code'].classList.remove('switch__item--current');
-		DOM.switchModeCtrls[mode].classList.add('switch__item--current');
-		
-		// Switch the page content.
-		switchContent();
-		
-		// Animate the pieces.
-		pm.animatePieces(mode === 'code' ? 'out' : 'in', function() {
-			isAnimating = false;
-			if( mode === 'design' ) {
-				pm.initTilt();
-				pm.loopFx();
-				gfx.glitch();
-				disablePageFx = false;
-			}
-		});
-	}
-
-	function switchOverlay() {
-		anime.remove(DOM.overlay);
-		anime({
-			targets: DOM.overlay,
-			duration: 800,
-			easing: 'linear',
-			opacity: mode === 'code' ? 1 : 0
-		});
-	}
-
-	function switchContent() {
-		// Change switchCtrls mode.
-		DOM.switchCtrls.classList.remove('mode--' + (mode === 'code' ? 'design' : 'code'));
-		DOM.switchCtrls.classList.add('mode--' + mode);
-
-		if( mode === 'code' ) {
-			switchToCode();
-		}
-		else {
-			switchToDesign();	
-		}
-	}
-
-	function switchToCode() {
-		const hideDesign = function(target, callback) {
-					let animeOpts = {};
-
-					if( typeof target === 'string' ) {
-						animeOpts.targets = DOM[target].el || DOM[target];
-						animeOpts.duration = 400;
-						animeOpts.easing = 'easeInQuint';
-						animeOpts.scale = 0.3;
-					}
-					else {
-						animeOpts.targets = target;
-						animeOpts.duration = 100;
-						animeOpts.delay = function(t,i) {
-							return i*100;
-						};
-						animeOpts.easing = 'easeInQuad';
-						animeOpts.translateY = '-75%';
-					}
-
-					animeOpts.opacity = {value: 0, easing: 'linear'};
-					animeOpts.complete = callback;
-
-					anime.remove(animeOpts.targets);
-					anime(animeOpts);
-			  },
-			  showCode = function(target) {
-					const el = DOM[target].el || DOM[target];
-
-					if( target === 'title' || target === 'contact' || target === 'menuCtrl' ) {
-						el.classList.remove('mode--design');
-						el.classList.add('mode--code');
-					}
-					if( DOM[target].letters ) {
-						animateLetters(DOM[target].letters, 'in', {
-							begin: function() {
-								DOM[target].el.style.opacity = 1;
-								DOM[target].el.style.transform = 'none';
-							}
-						});
-					}
-					else {
-						el.style.opacity = 1;
-						el.style.transform = 'none';
-					}
-			  };
-
-		// Animate the title, contact, menu ctrl and menu items out and show the code mode version of these elements.
-		// Title:
-		hideDesign('title', function() {
-			showCode('title');
-		});
-		// Contact:
-		hideDesign('contact', function() {
-			showCode('contact');
-		});
-		// Menu ctrl:
-		hideDesign('menuCtrl', function() {
-			showCode('menuCtrl');
-		});
-		// Menu links:
-		hideDesign(DOM.menu['design'].items, function() {
-			DOM.menu['design'].wrapper.style.display = 'none';
-				
-			animateLetters(DOM.menuCodeItemLetters, 'in', {
-				delay: function(t,i) {
-					return i*30
-				},
-				begin: function() {
-					DOM.menu['code'].wrapper.style.display = 'block';
-				}
+		containerBricks.imagesLoaded( function() {
+			containerBricks.masonry( {	
+			  	itemSelector: '.brick',
+			  	resize: true
 			});
 		});
-	}
+	};
 
-	function switchToDesign() {
-		const showDesign = function(target) {
-			  		let animeOpts = {};
 
-					if( typeof target === 'string' ) {
-						let el = DOM[target].el || DOM[target]
-						
-						el.classList.remove('mode--code');
-						el.classList.add('mode--design');
+	/*	Light Gallery
+	------------------------------------------------------- */
+	var ssLightGallery = function() {
 
-						animeOpts.targets = el;
-						animeOpts.duration = 400;
-						animeOpts.easing = 'easeOutQuint';
-						animeOpts.scale = [0.3,1];
+		$('#folio-wrap').lightGallery({  
+			showThumbByDefault: false,
+			hash: false,
+			selector: ".item-wrap"		
+		});
+	};
 
-						animeOpts.begin = function() {
-							if( DOM[target].letters !== undefined ) {
-								DOM[target].letters.forEach(function(letter) {
-									letter.style.opacity = 1;
-								});
-							}
-						}
+
+	/* Flexslider
+  	* ------------------------------------------------------ */
+  	var ssFlexSlider = function() {
+
+  		$WIN.on('load', function() {
+
+		   $('#testimonial-slider').flexslider({
+		   	namespace: "flex-",
+		      controlsContainer: "",
+		      animation: 'slide',
+		      controlNav: true,
+		      directionNav: false,
+		      smoothHeight: true,
+		      slideshowSpeed: 7000,
+		      animationSpeed: 600,
+		      randomize: false,
+		      touch: true,
+		   });
+
+	   });
+
+  	};
+
+
+  	/* Carousel
+	* ------------------------------------------------------ */
+	var ssOwlCarousel = function() {
+
+		$(".owl-carousel").owlCarousel({		
+	      nav: false,
+			loop: true,
+	    	margin: 50,
+	    	responsiveClass:true,
+	    	responsive: {
+	         0:{
+	            items:2,
+	            margin: 20
+	         },
+	         400:{
+	            items:3,
+	            margin: 30
+	         },
+	         600:{
+	            items:4,
+	            margin: 40
+	         },
+	         1000:{
+	            items:6            
+	         }
+	    	}
+		});
+
+	};
+  	
+
+
+  	/* Menu on Scrolldown
+	 * ------------------------------------------------------ */
+	var ssMenuOnScrolldown = function() {
+
+		var menuTrigger = $('#header-menu-trigger');
+
+		$WIN.on('scroll', function() {
+
+			if ($WIN.scrollTop() > 150) {				
+				menuTrigger.addClass('opaque');
+			}
+			else {				
+				menuTrigger.removeClass('opaque');
+			}
+
+		}); 
+	};
+
+	
+  	/* OffCanvas Menu
+	 * ------------------------------------------------------ */
+   var ssOffCanvas = function() {
+
+	       var menuTrigger = $('#header-menu-trigger'),
+	       nav             = $('#menu-nav-wrap'),
+	       closeButton     = nav.find('.close-button'),
+	       siteBody        = $('body'),
+	       mainContents    = $('section, footer');
+
+		// open-close menu by clicking on the menu icon
+		menuTrigger.on('click', function(e){
+			e.preventDefault();
+			menuTrigger.toggleClass('is-clicked');
+			siteBody.toggleClass('menu-is-open');
+		});
+
+		// close menu by clicking the close button
+		closeButton.on('click', function(e){
+			e.preventDefault();
+			menuTrigger.trigger('click');	
+		});
+
+		// close menu clicking outside the menu itself
+		siteBody.on('click', function(e){		
+			if( !$(e.target).is('#menu-nav-wrap, #header-menu-trigger, #header-menu-trigger span') ) {
+				menuTrigger.removeClass('is-clicked');
+				siteBody.removeClass('menu-is-open');
+			}
+		});
+
+   };
+
+
+  /* Smooth Scrolling
+	* ------------------------------------------------------ */
+	var ssSmoothScroll = function() {
+
+		$('.smoothscroll').on('click', function (e) {
+			var target = this.hash,
+			$target    = $(target);
+	 	
+		 	e.preventDefault();
+		 	e.stopPropagation();	   	
+
+	    	$('html, body').stop().animate({
+	       	'scrollTop': $target.offset().top
+	      }, cfg.scrollDuration, 'swing').promise().done(function () {
+
+	      	// check if menu is open
+	      	if ($('body').hasClass('menu-is-open')) {
+					$('#header-menu-trigger').trigger('click');
+				}
+
+	      	window.location.hash = target;
+	      });
+	  	});
+
+	};
+
+
+  /* Placeholder Plugin Settings
+	* ------------------------------------------------------ */
+	var ssPlaceholder = function() {
+		$('input, textarea, select').placeholder();  
+	};
+
+
+  	/* Alert Boxes
+  	------------------------------------------------------- */
+  	var ssAlertBoxes = function() {
+
+  		$('.alert-box').on('click', '.close', function() {
+		  $(this).parent().fadeOut(500);
+		}); 
+
+  	};	  	
+	
+
+  /* Animations
+	* ------------------------------------------------------- */
+	var ssAnimations = function() {
+
+		if (!$("html").hasClass('no-cssanimations')) {
+			$('.animate-this').waypoint({
+				handler: function(direction) {
+
+					var defAnimationEfx = cfg.defAnimation;
+
+					if ( direction === 'down' && !$(this.element).hasClass('animated')) {
+						$(this.element).addClass('item-animate');
+
+						setTimeout(function() {
+							$('body .animate-this.item-animate').each(function(ctr) {
+								var el       = $(this),
+								animationEfx = el.data('animate') || null;	
+
+	                  	if (!animationEfx) {
+			                 	animationEfx = defAnimationEfx;	                 	
+			               }
+
+			              	setTimeout( function () {
+									el.addClass(animationEfx + ' animated');
+									el.removeClass('item-animate');
+								}, ctr * 30);
+
+							});								
+						}, 100);
 					}
-					else {
-						animeOpts.targets = target;
-						animeOpts.duration = 600;
-						animeOpts.delay = function(t,i,c) {
-							return (c-i-1)*100;
-						};
-						animeOpts.easing = 'easeOutExpo';
-						animeOpts.translateY = ['-75%','0%']
-					}
 
-					animeOpts.opacity = {value: [0,1], easing: 'linear'};
-					
-					anime.remove(animeOpts.targets);
-					anime(animeOpts);
-			  };
+					// trigger once only
+	       		this.destroy(); 
+				}, 
+				offset: '95%'
+			}); 
+		}
 
+	};
+	
 
-		// Animate the title, contact, menu ctrl and menu items out and show the design mode version of these elements.
-		// Title:
-		animateLetters(DOM.title.letters, 'out', {
-			complete: function() {
-				showDesign('title');
-			}
-		});
-		// Contact:
-		animateLetters(DOM.contact.letters, 'out', {
-			complete: function() {
-				showDesign('contact');
-			}
-		});
-		// Menu ctrl:
-		DOM.menuCtrl.style.opacity = 0;
-		showDesign('menuCtrl');
-		// Menu links:
-		animateLetters(DOM.menuCodeItemLetters, 'out', {
-			delay: function(t,i,c) {
-				return (c-i-1)*10;
-			},
-			duration: 20,
-			complete: function() {
-				DOM.menu['code'].wrapper.style.display = 'none';
-				DOM.menu['design'].wrapper.style.display = 'block';
-				showDesign(DOM.menu['design'].items);
-			}
-		});
-	}
+  /* Intro Animation
+	* ------------------------------------------------------- */
+	var ssIntroAnimation = function() {
 
-	function animateLetters(letters, dir, extraAnimeOpts) {
-		let animeOpts = {};
+		$WIN.on('load', function() {
 		
-		animeOpts.targets = letters;
-		animeOpts.duration = 50;
-		animeOpts.delay = function(t,i,c) {
-			return dir === 'in' ? i*50 : (c-i-1)*50;
-		};
-		animeOpts.easing = dir === 'in' ? 'easeInQuint' : 'easeOutQuint';
-		animeOpts.opacity = dir === 'in' ? [0,1] : [1,0];
-		extend(animeOpts, extraAnimeOpts);
+	     	if (!$("html").hasClass('no-cssanimations')) {
+	     		setTimeout(function(){
+	    			$('.animate-intro').each(function(ctr) {
+						var el = $(this),
+	                   animationEfx = el.data('animate') || null;		                                      
 
-		anime.remove(animeOpts.targets);
-		anime(animeOpts);
-	}
+	               if (!animationEfx) {
+	                 	animationEfx = cfg.defAnimation;	                 	
+	               }
 
-	init();
+	              	setTimeout( function () {
+							el.addClass(animationEfx + ' animated');
+						}, ctr * 300);
+					});						
+				}, 100);
+	     	} 
+		}); 
 
-})(window);
+	};
+
+
+  /* Contact Form
+   * ------------------------------------------------------ */
+   var ssContactForm = function() {   	
+
+   	/* local validation */   	
+		$('#contactForm').validate({
+
+			/* submit via ajax */
+			submitHandler: function(form) {				
+				var sLoader = $('#submit-loader');			
+
+				$.ajax({   	
+			      type: "POST",
+			      url: "inc/sendEmail.php",
+			      data: $(form).serialize(),
+
+			      beforeSend: function() { 
+			      	sLoader.fadeIn(); 
+			      },
+			      success: function(msg) {
+		            // Message was sent
+		            if (msg == 'OK') {
+		            	sLoader.fadeOut(); 
+		               $('#message-warning').hide();
+		               $('#contactForm').fadeOut();
+		               $('#message-success').fadeIn();   
+		            }
+		            // There was an error
+		            else {
+		            	sLoader.fadeOut(); 
+		               $('#message-warning').html(msg);
+			            $('#message-warning').fadeIn();
+		            }
+			      },
+			      error: function() {
+			      	sLoader.fadeOut(); 
+			      	$('#message-warning').html("Something went wrong. Please try again.");
+			         $('#message-warning').fadeIn();
+			      }
+		      });    		
+	  		}
+
+		});
+   };	
+
+
+  /* AjaxChimp
+	* ------------------------------------------------------ */
+	var ssAjaxChimp = function() {
+
+		$('#mc-form').ajaxChimp({
+			language: 'es',
+		   url: cfg.mailChimpURL
+		});
+
+		// Mailchimp translation
+		//
+		//  Defaults:
+		//	 'submit': 'Submitting...',
+		//  0: 'We have sent you a confirmation email',
+		//  1: 'Please enter a value',
+		//  2: 'An email address must contain a single @',
+		//  3: 'The domain portion of the email address is invalid (the portion after the @: )',
+		//  4: 'The username portion of the email address is invalid (the portion before the @: )',
+		//  5: 'This email address looks fake or invalid. Please enter a real email address'
+
+		$.ajaxChimp.translations.es = {
+		  'submit': 'Submitting...',
+		  0: '<i class="fa fa-check"></i> We have sent you a confirmation email',
+		  1: '<i class="fa fa-warning"></i> You must enter a valid e-mail address.',
+		  2: '<i class="fa fa-warning"></i> E-mail address is not valid.',
+		  3: '<i class="fa fa-warning"></i> E-mail address is not valid.',
+		  4: '<i class="fa fa-warning"></i> E-mail address is not valid.',
+		  5: '<i class="fa fa-warning"></i> E-mail address is not valid.'
+		} 
+
+	};
+
+ 
+  /* Back to Top
+	* ------------------------------------------------------ */
+	var ssBackToTop = function() {
+
+		var pxShow  = 500,         // height on which the button will show
+		fadeInTime  = 400,         // how slow/fast you want the button to show
+		fadeOutTime = 400,         // how slow/fast you want the button to hide
+		scrollSpeed = 300,         // how slow/fast you want the button to scroll to top. can be a value, 'slow', 'normal' or 'fast'
+		goTopButton = $("#go-top")
+
+		// Show or hide the sticky footer button
+		$(window).on('scroll', function() {
+			if ($(window).scrollTop() >= pxShow) {
+				goTopButton.fadeIn(fadeInTime);
+			} else {
+				goTopButton.fadeOut(fadeOutTime);
+			}
+		});
+	};	
+
+
+  
+  /* Initialize
+	* ------------------------------------------------------ */
+	(function ssInit() {
+
+		ssPreloader();
+		ssFitVids();
+		ssMasonryFolio();
+		ssLightGallery();
+		ssFlexSlider();
+		ssOwlCarousel();
+		ssMenuOnScrolldown();
+		ssOffCanvas();
+		ssSmoothScroll();
+		ssPlaceholder();
+		ssAlertBoxes();
+		ssAnimations();
+		ssIntroAnimation();		
+		ssContactForm();
+		ssAjaxChimp();
+		ssBackToTop();
+
+	})();
+ 
+
+})(jQuery);
