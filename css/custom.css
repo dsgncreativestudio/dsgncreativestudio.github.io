@@ -1,9 +1,9 @@
 /* Custom CSS */
 
 /* ContentTitle Font */
-
-body {
-  --background-color: #363dc2!important;
+nav ul {
+  text-decoration: none;
+  list-style-type: none;
 }
 #ContentTitle {
   margin-top: -10px;
@@ -16,6 +16,10 @@ body {
 .content--related .fa {
   font-size: 8em !important;
   margin: 0 25px;
+}
+
+a {
+  cursor:pointer;
 }
 
 /******************************************
